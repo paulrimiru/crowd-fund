@@ -5,6 +5,10 @@ import { prisma } from "~/db.server";
 
 export type { User } from "@prisma/client";
 
+export async function getUserByAddress(address: User["address"]) {
+  return prisma.user.findUnique({ where: { address } });
+}
+
 export async function getUserById(id: User["id"]) {
   return prisma.user.findUnique({ where: { id } });
 }
