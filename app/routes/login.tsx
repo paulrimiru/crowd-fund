@@ -19,21 +19,21 @@ export const loader: LoaderFunction = async ({ request }) => {
 
 interface ActionData {
   errors?: {
-    email?: string;
+    address?: string;
     password?: string;
   };
 }
 
 export const action: ActionFunction = async ({ request }) => {
   const formData = await request.formData();
-  const email = formData.get("email");
+  const address = formData.get("address");
   const password = formData.get("password");
   const redirectTo = safeRedirect(formData.get("redirectTo"), "/");
   const remember = formData.get("remember");
 
-  if (!validateEmail(email)) {
+  if (typeof address !== "string" || address.length === 0) {
     return json<ActionData>(
-      { errors: { email: "Email is invalid" } },
+      { errors: { password: "Wallet address is required" } },
       { status: 400 }
     );
   }
@@ -52,11 +52,11 @@ export const action: ActionFunction = async ({ request }) => {
     );
   }
 
-  const user = await verifyLogin(email, password);
+  const user = await verifyLogin(address, password);
 
   if (!user) {
     return json<ActionData>(
-      { errors: { email: "Invalid email or password" } },
+      { errors: { password: "Invalid wallet address or password" } },
       { status: 400 }
     );
   }
@@ -77,14 +77,32 @@ export const meta: MetaFunction = () => {
 
 export default function LoginPage() {
   const [searchParams] = useSearchParams();
-  const redirectTo = searchParams.get("redirectTo") || "/notes";
+  const redirectTo = searchParams.get("redirectTo") || "/";
   const actionData = useActionData() as ActionData;
-  const emailRef = React.useRef<HTMLInputElement>(null);
   const passwordRef = React.useRef<HTMLInputElement>(null);
+  const [address, setAddress] = React.useState<string>("");
+
+  const connectToWallet = () => {
+    if (!window.ethereum) {
+      alert("Please install metamask extension");
+      return;
+    }
+
+    window.ethereum
+      .request({ method: "eth_requestAccounts" })
+      .then((address) => {
+        console.log({ address });
+        setAddress(address as string);
+      });
+  };
 
   React.useEffect(() => {
-    if (actionData?.errors?.email) {
-      emailRef.current?.focus();
+    connectToWallet();
+  }, []);
+
+  React.useEffect(() => {
+    if (actionData?.errors?.address) {
+      passwordRef.current?.focus();
     } else if (actionData?.errors?.password) {
       passwordRef.current?.focus();
     }
@@ -94,33 +112,19 @@ export default function LoginPage() {
     <div className="flex min-h-full flex-col justify-center">
       <div className="mx-auto w-full max-w-md px-8">
         <Form method="post" className="space-y-6" noValidate>
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-gray-700"
-            >
-              Email address
-            </label>
-            <div className="mt-1">
-              <input
-                ref={emailRef}
-                id="email"
-                required
-                autoFocus={true}
-                name="email"
-                type="email"
-                autoComplete="email"
-                aria-invalid={actionData?.errors?.email ? true : undefined}
-                aria-describedby="email-error"
-                className="w-full rounded border border-gray-500 px-2 py-1 text-lg"
-              />
-              {actionData?.errors?.email && (
-                <div className="pt-1 text-red-700" id="email-error">
-                  {actionData.errors.email}
-                </div>
-              )}
-            </div>
-          </div>
+          <input
+            value={address}
+            name="address"
+            type="hidden"
+            className="w-full rounded bg-yellow-500  py-2 px-4 text-white hover:bg-yellow-600 focus:bg-yellow-400"
+          />
+
+          <button
+            onClick={connectToWallet}
+            className="w-full rounded bg-yellow-500  py-2 px-4 text-white hover:bg-yellow-600 focus:bg-yellow-400"
+          >
+            {address.length ? "Connected to wallet" : "Connect wallet account"}
+          </button>
 
           <div>
             <label

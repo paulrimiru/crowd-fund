@@ -22,6 +22,7 @@ interface ActionData {
   errors: {
     email?: string;
     password?: string;
+    address?: string;
   };
 }
 
@@ -29,6 +30,7 @@ export const action: ActionFunction = async ({ request }) => {
   const formData = await request.formData();
   const email = formData.get("email");
   const password = formData.get("password");
+  const address = formData.get("address");
   const redirectTo = safeRedirect(formData.get("redirectTo"), "/");
 
   if (!validateEmail(email)) {
@@ -45,12 +47,21 @@ export const action: ActionFunction = async ({ request }) => {
     );
   }
 
+  if (typeof address !== "string" || address.length === 0) {
+    return json<ActionData>(
+      { errors: { address: "Wallet address is required" } },
+      { status: 400 }
+    );
+  }
+
   if (password.length < 8) {
     return json<ActionData>(
       { errors: { password: "Password is too short" } },
       { status: 400 }
     );
   }
+  
+  
 
   const existingUser = await getUserByEmail(email);
   if (existingUser) {
@@ -60,7 +71,7 @@ export const action: ActionFunction = async ({ request }) => {
     );
   }
 
-  const user = await createUser(email, password);
+  const user = await createUser(email, password, address);
 
   return createUserSession({
     request,
@@ -82,6 +93,23 @@ export default function Join() {
   const actionData = useActionData() as ActionData;
   const emailRef = React.useRef<HTMLInputElement>(null);
   const passwordRef = React.useRef<HTMLInputElement>(null);
+  const [address, setAddress] = React.useState<string>("");
+
+  const connectToWallet = () => {
+    if (!window.ethereum) {
+      alert("Please install metamask extension");
+      return;
+    }
+
+    window.ethereum.request({ method: "eth_requestAccounts" }).then((address) => {
+      console.log({ address });
+      setAddress(address as string);
+    });
+  }
+
+  React.useEffect(() => {
+    connectToWallet();
+  }, [])
 
   React.useEffect(() => {
     if (actionData?.errors?.email) {
@@ -148,6 +176,20 @@ export default function Join() {
               )}
             </div>
           </div>
+
+          <input
+            value={address}
+            name="address"
+            type="hidden"
+            className="w-full rounded bg-yellow-500  py-2 px-4 text-white hover:bg-yellow-600 focus:bg-yellow-400"
+          />
+
+          <button
+            onClick={connectToWallet}
+            className="w-full rounded bg-yellow-500  py-2 px-4 text-white hover:bg-yellow-600 focus:bg-yellow-400"
+          >
+            {address.length ? "Connected to wallet" : "Connect wallet account"}
+          </button>
 
           <input type="hidden" name="redirectTo" value={redirectTo} />
           <button
