@@ -25,7 +25,6 @@ const input = {
 let output = JSON.parse(solc.compile(JSON.stringify(input)));
 let contract = "CrowdFunding";
 
-
 const abi = output.contracts[contractFile][contract].abi;
 const bytecode = output.contracts[contractFile][contract].evm.bytecode.object;
 
