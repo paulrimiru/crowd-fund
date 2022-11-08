@@ -25,7 +25,7 @@ contract CrowdFunding {
 
     function remitAmount() public payable {
         uint balance = address(this).balance;
-        require(msg.sender==owner, "Only owner can remit");
+        require(msg.sender == owner, "Only owner can remit");
         require(target<=balance, "Target not reached");
         
         (bool sent, ) = owner.call{value: balance}("");

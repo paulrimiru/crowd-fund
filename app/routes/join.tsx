@@ -10,7 +10,7 @@ import * as React from "react";
 import { getUserId, createUserSession } from "~/session.server";
 
 import { createUser, getUserByEmail } from "~/models/user.server";
-import { safeRedirect, validateEmail } from "~/utils";
+import { displayAddress, safeRedirect, validateEmail } from "~/utils";
 
 export const loader: LoaderFunction = async ({ request }) => {
   const userId = await getUserId(request);
@@ -33,6 +33,13 @@ export const action: ActionFunction = async ({ request }) => {
   const address = formData.get("address");
   const redirectTo = safeRedirect(formData.get("redirectTo"), "/");
 
+  if (typeof address !== "string" || address.length === 0) {
+    return json<ActionData>(
+      { errors: { address: "Wallet address is required" } },
+      { status: 400 }
+    );
+  }
+
   if (!validateEmail(email)) {
     return json<ActionData>(
       { errors: { email: "Email is invalid" } },
@@ -47,21 +54,12 @@ export const action: ActionFunction = async ({ request }) => {
     );
   }
 
-  if (typeof address !== "string" || address.length === 0) {
-    return json<ActionData>(
-      { errors: { address: "Wallet address is required" } },
-      { status: 400 }
-    );
-  }
-
   if (password.length < 8) {
     return json<ActionData>(
       { errors: { password: "Password is too short" } },
       { status: 400 }
     );
   }
-  
-  
 
   const existingUser = await getUserByEmail(email);
   if (existingUser) {
@@ -101,15 +99,19 @@ export default function Join() {
       return;
     }
 
-    window.ethereum.request({ method: "eth_requestAccounts" }).then((address) => {
-      console.log({ address });
-      setAddress(address as string);
-    });
-  }
+    window.ethereum
+      .request<string[]>({ method: "eth_requestAccounts" })
+      .then((address) => {
+        console.log({ address });
+        if (address) {
+          setAddress(address[0] || "");
+        }
+      });
+  };
 
   React.useEffect(() => {
     connectToWallet();
-  }, [])
+  }, []);
 
   React.useEffect(() => {
     if (actionData?.errors?.email) {
@@ -150,7 +152,6 @@ export default function Join() {
               )}
             </div>
           </div>
-
           <div>
             <label
               htmlFor="password"
@@ -186,9 +187,12 @@ export default function Join() {
 
           <button
             onClick={connectToWallet}
-            className="w-full rounded bg-yellow-500  py-2 px-4 text-white hover:bg-yellow-600 focus:bg-yellow-400"
+            className="w-full rounded bg-yellow-500  py-2 px-4 text-white hover:bg-yellow-600 focus:bg-yellow-400 disabled:bg-gray-400"
+            disabled={!!address.length}
           >
-            {address.length ? "Connected to wallet" : "Connect wallet account"}
+            {address.length
+              ? `Connected to wallet address ${displayAddress(address)}`
+              : "Connect wallet account"}
           </button>
 
           <input type="hidden" name="redirectTo" value={redirectTo} />

@@ -9,7 +9,7 @@ import * as React from "react";
 
 import { createUserSession, getUserId } from "~/session.server";
 import { verifyLogin } from "~/models/user.server";
-import { safeRedirect, validateEmail } from "~/utils";
+import { displayAddress, safeRedirect } from "~/utils";
 
 export const loader: LoaderFunction = async ({ request }) => {
   const userId = await getUserId(request);
@@ -28,7 +28,7 @@ export const action: ActionFunction = async ({ request }) => {
   const formData = await request.formData();
   const address = formData.get("address");
   const password = formData.get("password");
-  const redirectTo = safeRedirect(formData.get("redirectTo"), "/");
+  const redirectTo = safeRedirect(formData.get("redirectTo"), "/projects");
   const remember = formData.get("remember");
 
   if (typeof address !== "string" || address.length === 0) {
@@ -89,10 +89,12 @@ export default function LoginPage() {
     }
 
     window.ethereum
-      .request({ method: "eth_requestAccounts" })
+      .request<string[]>({ method: "eth_requestAccounts" })
       .then((address) => {
         console.log({ address });
-        setAddress(address as string);
+        if (address) {
+          setAddress(address[0] || "");
+        }
       });
   };
 
@@ -121,9 +123,12 @@ export default function LoginPage() {
 
           <button
             onClick={connectToWallet}
-            className="w-full rounded bg-yellow-500  py-2 px-4 text-white hover:bg-yellow-600 focus:bg-yellow-400"
+            className="w-full rounded bg-yellow-500  py-2 px-4 text-white hover:bg-yellow-600 focus:bg-yellow-400 disabled:bg-gray-400"
+            disabled={!!address.length}
           >
-            {address.length ? "Connected to wallet" : "Connect wallet account"}
+            {address.length
+              ? `Connected to wallet address ${displayAddress(address)}`
+              : "Connect wallet account"}
           </button>
 
           <div>
